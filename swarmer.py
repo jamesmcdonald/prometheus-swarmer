@@ -13,13 +13,13 @@ DEFAULT_ENV_NAME = 'SERVICE_PORTS'
 DEFAULT_SERVICE_NAME = 'prometheus'
 DEFAULT_PCNETWORKS = ['proxy']
 
-log = logging.getLogger(__name__) # pylint: disable=C0103
+log = logging.getLogger(__name__) # pylint: disable=invalid-name
 logging.basicConfig(level=logging.DEBUG)
 
 class PrometheusSwarmer(object):
     """PrometheusSwarmer scans for swarm services and generates prometheus config."""
 
-    def __init__(self, # pylint: disable=R0913
+    def __init__(self, # pylint: disable=too-many-arguments
                  outputpath=DEFAULT_PATH,
                  label_name=DEFAULT_LABEL_NAME,
                  env_name=DEFAULT_ENV_NAME,
@@ -56,7 +56,7 @@ class PrometheusSwarmer(object):
 
         self.endpoints = []
 
-    def discover(self):
+    def discover(self): # pylint: disable=too-many-branches
         """Discover the services exposing metrics endpoints"""
         self.endpoints = []
         for service in self.client.services.list():
