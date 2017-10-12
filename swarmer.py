@@ -114,8 +114,11 @@ class PrometheusSwarmer(object):
                             legallabel = label.replace('.', '_')
                             endpoint['labels']['container_label_{}'.format(legallabel)] \
                                     = clabels[label]
-                        endpoint['labels']['container_id'] = \
-                            task['Status']['ContainerStatus']['ContainerID']
+                        try:
+                            endpoint['labels']['container_id'] = \
+                                task['Status']['ContainerStatus']['ContainerID']
+                        except KeyError:
+                            pass
                         self.endpoints.append(endpoint)
                         log.debug('Add endpoint for %s at %s:%s', name, address, port)
                         break
