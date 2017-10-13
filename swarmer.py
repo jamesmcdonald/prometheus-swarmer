@@ -99,35 +99,37 @@ class PrometheusSwarmer(object):
                 if task['DesiredState'] != 'running':
                     continue
 
-                # Add an endpoint for the first matching network
                 if 'NetworksAttachments' not in task:
-                    log.debug("No network attachments for service '%s', skipping", name)
+                    log.debug("No network attachments on a task for service '%s', skipping", name)
                     continue
+
+                # Add an endpoint for the first matching network
                 for network in task['NetworksAttachments']:
-                    if network['Network']['Spec']['Name'] in self.pcnetworks:
-                        address = network['Addresses'][0].split('/')[0]
-                        endpoint = {
-                            'targets': [address + ':' + port],
-                            'labels': {
-                                'job': name
-                            }
+                    if network['Network']['Spec']['Name'] not in self.pcnetworks:
+                        continue
+                    address = network['Addresses'][0].split('/')[0]
+                    endpoint = {
+                        'targets': [address + ':' + port],
+                        'labels': {
+                            'job': name
                         }
-                        for label in slabels:
-                            legallabel = label.replace('.', '_')
-                            endpoint['labels']['service_label_{}'.format(legallabel)] = \
-                                    slabels[label]
-                        for label in clabels:
-                            legallabel = label.replace('.', '_')
-                            endpoint['labels']['container_label_{}'.format(legallabel)] \
-                                    = clabels[label]
-                        try:
-                            endpoint['labels']['container_id'] = \
-                                task['Status']['ContainerStatus']['ContainerID']
-                        except KeyError:
-                            pass
-                        self.endpoints.append(endpoint)
-                        log.debug('Add endpoint for %s at %s:%s', name, address, port)
-                        break
+                    }
+                    for label in slabels:
+                        legallabel = label.replace('.', '_')
+                        endpoint['labels']['service_label_{}'.format(legallabel)] = \
+                                slabels[label]
+                    for label in clabels:
+                        legallabel = label.replace('.', '_')
+                        endpoint['labels']['container_label_{}'.format(legallabel)] \
+                                = clabels[label]
+                    try:
+                        endpoint['labels']['container_id'] = \
+                            task['Status']['ContainerStatus']['ContainerID']
+                    except KeyError:
+                        pass
+                    self.endpoints.append(endpoint)
+                    log.debug('Add endpoint for %s at %s:%s', name, address, port)
+                    break
 
         log.debug(pformat(self.endpoints))
 
