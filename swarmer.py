@@ -50,8 +50,14 @@ class PrometheusSwarmer(object):
                 ptask = pservice.tasks()[0]
                 for netattachment in ptask['NetworksAttachments']:
                     pcnetworks.append(netattachment['Network']['Spec']['Name'])
+                log.debug("Discovered networks: %s", pcnetworks)
             except docker.errors.NotFound:
+                log.debug("Prometheus container not found, using default networks")
                 pcnetworks = DEFAULT_PCNETWORKS
+            except KeyError:
+                log.debug("Prometheus container is not on any networks, using defaults")
+                pcnetworks = DEFAULT_PCNETWORKS
+
         self.pcnetworks = pcnetworks
 
         self.endpoints = []
