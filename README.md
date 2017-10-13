@@ -54,7 +54,7 @@ Start the prometheus service:
         --mount source=/storage/prometheus,target=/prometheus,type=bind \
         --mount source=/config/prometheus.yml,target=/etc/prometheus/prometheus.yml,type=bind \
         --mount source=prometheus-swarm,target=/etc/prometheus/swarm.d \
-		prom/prometheus
+        prom/prometheus
 
 Here I have an extra volume bind-mounted on /prometheus to persist Prometheus's
 own data.
@@ -69,5 +69,5 @@ Start prometheus-swarmer:
 
     docker service create --name prometheus-swarmer --constraint node.hostname==promnode \
         --mount source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind \
-		--mount source=prometheus-swarm,target=/etc/prometheus/swarm.d \
-		prometheus-swarmer
+        --mount source=prometheus-swarm,target=/etc/prometheus/swarm.d \
+        prometheus-swarmer
