@@ -73,7 +73,8 @@ class PrometheusSwarmer(object):
                 continue
 
             # Service labels
-            slabels = service.attrs['Spec']['Labels']
+            slabels = service.attrs['Spec']['Labels'] if 'Labels' in service.attrs['Spec'] \
+                    else {}
 
             # Container labels
             cspec = service.attrs['Spec']['TaskTemplate']['ContainerSpec']
