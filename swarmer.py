@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Prometheus service discovery for Docker Swarm"""
+import argparse
 import json
 import logging
 from time import sleep
@@ -13,18 +14,18 @@ DEFAULT_ENV_NAME = 'SERVICE_PORTS'
 DEFAULT_SERVICE_NAME = 'prometheus'
 DEFAULT_PCNETWORKS = ['proxy']
 
-log = logging.getLogger(__name__) # pylint: disable=invalid-name
-logging.basicConfig(level=logging.DEBUG)
-
 class PrometheusSwarmer(object):
     """PrometheusSwarmer scans for swarm services and generates prometheus config."""
 
-    def __init__(self, # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-instance-attributes
+
+    def __init__(self,
                  outputpath=DEFAULT_PATH,
                  label_name=DEFAULT_LABEL_NAME,
                  env_name=DEFAULT_ENV_NAME,
                  service_name=DEFAULT_SERVICE_NAME,
                  pcnetworks=None,
+                 log=logging
                 ):
         """Create a PrometheusSwarmer
 
@@ -35,6 +36,9 @@ class PrometheusSwarmer(object):
         pcnetworks - Override prometheus service detection with a static network list
         """
 
+        # pylint: disable=too-many-arguments
+
+        self.log = log
         self.outputpath = outputpath
         self.label_name = label_name
         self.env_name = env_name
@@ -50,20 +54,23 @@ class PrometheusSwarmer(object):
                 ptask = pservice.tasks()[0]
                 for netattachment in ptask['NetworksAttachments']:
                     pcnetworks.append(netattachment['Network']['Spec']['Name'])
-                log.debug("Discovered networks: %s", pcnetworks)
+                self.log.debug("Discovered networks: %s", pcnetworks)
             except docker.errors.NotFound:
-                log.debug("Prometheus container not found, using default networks")
+                self.log.debug("Prometheus container not found, using default networks")
                 pcnetworks = DEFAULT_PCNETWORKS
             except KeyError:
-                log.debug("Prometheus container is not on any networks, using defaults")
+                self.log.debug("Prometheus container is not on any networks, using defaults")
                 pcnetworks = DEFAULT_PCNETWORKS
 
         self.pcnetworks = pcnetworks
 
         self.endpoints = []
 
-    def discover(self): # pylint: disable=too-many-branches
+    def discover(self):
         """Discover the services exposing metrics endpoints"""
+
+        # pylint: disable=too-many-branches
+
         self.endpoints = []
         for service in self.client.services.list():
             name = service.attrs['Spec']['Name']
@@ -92,7 +99,7 @@ class PrometheusSwarmer(object):
                     # Support a comma-separated list - take the first
                     port = ports[0].split(',')[0]
             if port is None:
-                log.debug("Unable to find port for service '%s', skipping", name)
+                self.log.debug("Unable to find port for service '%s', skipping", name)
                 continue
 
             for task in service.tasks():
@@ -101,7 +108,7 @@ class PrometheusSwarmer(object):
                     continue
 
                 if 'NetworksAttachments' not in task:
-                    log.debug("No network attachments on a task for service '%s', skipping", name)
+                    self.log.debug("Task for service '%s' on no networks, skipping", name)
                     continue
 
                 # Add an endpoint for the first matching network
@@ -129,10 +136,10 @@ class PrometheusSwarmer(object):
                     except KeyError:
                         pass
                     self.endpoints.append(endpoint)
-                    log.debug('Add endpoint for %s at %s:%s', name, address, port)
+                    self.log.debug('Add endpoint for %s at %s:%s', name, address, port)
                     break
 
-        log.debug(pformat(self.endpoints))
+        self.log.debug(pformat(self.endpoints))
 
 
     def writejson(self):
@@ -142,17 +149,54 @@ class PrometheusSwarmer(object):
 
     def run(self):
         """Run discovery in an infinite loop"""
-        log.info("In A.D. 2101 prometheus-swarmer was beginning.")
+        self.log.info("In A.D. 2101 prometheus-swarmer was beginning.")
         while True:
-            log.debug("Start discovery")
+            self.log.debug("Start discovery")
             self.discover()
-            log.debug("Finish discovery")
+            self.log.debug("Finish discovery")
             self.writejson()
             sleep(60)
 
+def parse_args():
+    """Handle command-line arguments"""
+
+    parser = argparse.ArgumentParser(description='Discover Prometheus metrics endpoints in a swarm')
+    parser.add_argument('-d', '--debug', action='store_true', help='Enable debug logging')
+    parser.add_argument('-l', '--label', help='Service label to look for',
+                        default=DEFAULT_LABEL_NAME)
+    parser.add_argument('-e', '--env-name', help='Environment variable to look for',
+                        default=DEFAULT_ENV_NAME)
+    parser.add_argument('-o', '--output', help='Path to write output JSON to',
+                        default=DEFAULT_PATH)
+    parser.add_argument('-s', '--service', help='Name of prometheus service to detect',
+                        default=DEFAULT_SERVICE_NAME)
+
+    return parser.parse_args()
+
+
 def main():
     """Main function for running class directly"""
-    swarmer = PrometheusSwarmer()
+
+    args = parse_args()
+
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(message)s')
+    console_handler.setFormatter(formatter)
+
+    logger.addHandler(console_handler)
+
+    sparams = {}
+    sparams['outputpath'] = args.output
+    sparams['label_name'] = args.label
+    sparams['env_name'] = args.env_name
+    sparams['service_name'] = args.service
+    sparams['log'] = logger
+
+    swarmer = PrometheusSwarmer(**sparams)
     swarmer.run()
 
 if __name__ == '__main__':
