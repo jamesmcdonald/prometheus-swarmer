@@ -87,6 +87,11 @@ class PrometheusSwarmer(object):
             cspec = service.attrs['Spec']['TaskTemplate']['ContainerSpec']
             clabels = cspec['Labels'] if 'Labels' in cspec else {}
 
+            # Skip services labelled with 'nometrics'
+            if 'nometrics' in slabels or 'nometrics' in clabels:
+                self.log.debug("Service '%s' has a 'nometrics' label, skipping", name)
+                continue
+
             # Environment variables
             envs = cspec['Env'] if 'Env' in cspec else []
 
