@@ -140,6 +140,9 @@ class PrometheusSwarmer(object):
                             task['Status']['ContainerStatus']['ContainerID']
                     except KeyError:
                         pass
+                    # Support a custom metrics path
+                    if 'PROM_METRICS_PATH' in envs:
+                        endpoint['labels']['__metrics_path__'] = envs['PROM_METRICS_PATH']
                     self.endpoints.append(endpoint)
                     self.log.debug('Add endpoint for %s at %s:%s', name, address, port)
                     break
